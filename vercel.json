@@ -1,0 +1,23 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev", 
+  "installCommand": "npm install",
+  "functions": {
+    "app/api/wizard/business/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/wizard/ai-tool/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/wizard/claude/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/plans/save/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/export/[type]/route.ts": {
+      "maxDuration": 45
+    }
+  }
+}
