@@ -64,6 +64,33 @@ const businessWizardSteps: WizardStep[] = [
   }
 ];
 
+// Claude API integration function
+async function callClaudeAPI(prompt: string): Promise<string> {
+  try {
+    const response = await fetch('/api/claude', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt }),
+    });
+
+    const data = await response.json();
+    
+    if (data.success) {
+      return data.content;
+    } else if (data.fallback) {
+      // Return fallback content if API fails
+      throw new Error('API_FALLBACK');
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch (error) {
+    console.error('Claude API call failed:', error);
+    throw error;
+  }
+}
+
 // UI Components
 const StepIndicator = ({ steps, currentStep }: { steps: WizardStep[], currentStep: number }) => (
   <div className="flex items-center justify-center mb-8 overflow-x-auto">
@@ -328,7 +355,7 @@ const AIAssistant = ({ context, onSuggestion }: { context: any, onSuggestion: (s
     try {
       const prompt = `Based on this business context: ${JSON.stringify(context)}, provide 3 specific, actionable suggestions for AI implementation. Return as a JSON array of strings.`;
       
-      const response = await window.claude.complete(prompt);
+      const response = await callClaudeAPI(prompt);
       const parsed = JSON.parse(response);
       setSuggestions(Array.isArray(parsed) ? parsed : []);
     } catch (error) {
@@ -515,40 +542,42 @@ const BusinessWizard = ({ onComplete }: { onComplete: (data: BusinessData) => vo
         Make this specific to their ${data.industry} business with actionable, industry-relevant recommendations.
       `;
       
-      const response = await window.claude.complete(prompt);
-      const plan = JSON.parse(response);
-      setGeneratedPlan(plan);
-      onComplete(data);
-    } catch (error) {
-      // Fallback plan if Claude fails
-      const fallbackPlan = {
-        executiveSummary: `Transform ${data.businessName} into an AI-powered industry leader through strategic automation and intelligent decision-making systems.`,
-        quickWins: [
-          {
-            action: "Implement AI chatbot for customer service",
-            impact: "24/7 customer support with 60% cost reduction",
-            tools: ["ChatGPT API", "Intercom", "Zendesk"],
-            timeframe: "30 days"
-          },
-          {
-            action: "Automate data entry and reporting",
-            impact: "Save 15+ hours per week on manual tasks",
-            tools: ["Zapier", "Microsoft Power Automate", "Google Apps Script"],
-            timeframe: "45 days"
-          }
-        ],
-        strategicInitiatives: [
-          {
-            initiative: "Predictive Analytics Platform",
-            description: "Implement AI-driven analytics to predict customer behavior and optimize business decisions",
-            timeframe: "3-6 months",
-            budget: "$15,000-30,000",
-            roi: "200-400% within 12 months"
-          }
-        ]
-      };
-      setGeneratedPlan(fallbackPlan);
-      onComplete(data);
+      try {
+        const response = await callClaudeAPI(prompt);
+        const plan = JSON.parse(response);
+        setGeneratedPlan(plan);
+        onComplete(data);
+      } catch (error) {
+        // Fallback plan if Claude API fails
+        const fallbackPlan = {
+          executiveSummary: `Transform ${data.businessName} into an AI-powered industry leader through strategic automation and intelligent decision-making systems.`,
+          quickWins: [
+            {
+              action: "Implement AI chatbot for customer service",
+              impact: "24/7 customer support with 60% cost reduction",
+              tools: ["ChatGPT API", "Intercom", "Zendesk"],
+              timeframe: "30 days"
+            },
+            {
+              action: "Automate data entry and reporting",
+              impact: "Save 15+ hours per week on manual tasks",
+              tools: ["Zapier", "Microsoft Power Automate", "Google Apps Script"],
+              timeframe: "45 days"
+            }
+          ],
+          strategicInitiatives: [
+            {
+              initiative: "Predictive Analytics Platform",
+              description: "Implement AI-driven analytics to predict customer behavior and optimize business decisions",
+              timeframe: "3-6 months",
+              budget: "$15,000-30,000",
+              roi: "200-400% within 12 months"
+            }
+          ]
+        };
+        setGeneratedPlan(fallbackPlan);
+        onComplete(data);
+      }
     } finally {
       setLoading(false);
     }
@@ -632,7 +661,6 @@ const BusinessWizard = ({ onComplete }: { onComplete: (data: BusinessData) => vo
       <AIAssistant 
         context={formData} 
         onSuggestion={(suggestion) => {
-          // Handle AI suggestions
           console.log("AI Suggestion:", suggestion);
         }} 
       />
